@@ -1,6 +1,6 @@
 {
   "name": "sequential-digital-signing",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A package for handling sequential digital signatures with queue-based signing requirements",
   "main": "index.js",
   "scripts": {
