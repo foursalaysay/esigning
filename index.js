@@ -8,25 +8,23 @@ class SequentialSigning {
         this.signatureQueue = signatureQueue;
         this.signatures = new Map();
         this.currentIndex = 0;
+        this.documentId = crypto.randomBytes(16).toString('hex');
     }
 
     // Add a signature for a specific section
-    addSignature(section, signature, signer) {
+    addSignature(section, content, signature, signerId) {
         // Validate if this is the next section in queue
         if (section !== this.signatureQueue[this.currentIndex]) {
             throw new Error(`Cannot sign section "${section}". Next required section is "${this.signatureQueue[this.currentIndex]}"`);
         }
 
-        // Validate signature format (you might want to add more validation)
-        if (!signature || typeof signature !== 'string') {
-            throw new Error('Invalid signature format');
-        }
-
-        // Store the signature
+        // Store the signature with metadata
         this.signatures.set(section, {
             signature,
-            signer,
-            timestamp: new Date().toISOString()
+            signerId,
+            content,
+            timestamp: new Date().toISOString(),
+            documentId: this.documentId
         });
 
         // Move to next section
@@ -58,12 +56,20 @@ class SequentialSigning {
             currentIndex: this.currentIndex,
             totalSections: this.signatureQueue.length,
             signatures: Object.fromEntries(this.signatures),
-            nextSection: this.getNextSection()
+            nextSection: this.getNextSection(),
+            documentId: this.documentId
         };
     }
 
-    // Verify all signatures (you might want to add more verification logic)
-    verifySignatures() {
+    // Verify a single signature
+    verifySignature(section, content, signature, publicKey) {
+        const verify = crypto.createVerify('RSA-SHA256');
+        verify.update(content);
+        return verify.verify(publicKey, signature, 'base64');
+    }
+
+    // Verify all signatures
+    verifySignatures(publicKeys) {
         if (!this.isComplete()) {
             return {
                 isValid: false,
@@ -71,17 +77,48 @@ class SequentialSigning {
             };
         }
 
-        // Here you would typically implement your signature verification logic
-        // This is just a basic example
-        const allSignaturesPresent = this.signatureQueue.every(section => 
-            this.signatures.has(section)
-        );
+        let allSignaturesValid = true;
+        const verificationResults = [];
+
+        // Verify each signature
+        for (const [section, signatureData] of this.signatures) {
+            const publicKey = publicKeys[signatureData.signerId];
+            if (!publicKey) {
+                allSignaturesValid = false;
+                verificationResults.push({
+                    section,
+                    isValid: false,
+                    message: `No public key found for signer ${signatureData.signerId}`
+                });
+                continue;
+            }
+
+            const isValid = this.verifySignature(
+                section,
+                signatureData.content,
+                signatureData.signature,
+                publicKey
+            );
+
+            verificationResults.push({
+                section,
+                isValid,
+                signerId: signatureData.signerId,
+                timestamp: signatureData.timestamp
+            });
+
+            if (!isValid) {
+                allSignaturesValid = false;
+            }
+        }
 
         return {
-            isValid: allSignaturesPresent,
-            message: allSignaturesPresent 
-                ? 'All signatures are present and valid' 
-                : 'Some signatures are missing or invalid'
+            isValid: allSignaturesValid,
+            message: allSignaturesValid 
+                ? 'All signatures are cryptographically valid' 
+                : 'Some signatures are invalid or have been tampered with',
+            documentId: this.documentId,
+            verificationResults
         };
     }
 }
