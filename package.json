@@ -1,0 +1,22 @@
+{
+  "name": "sequential-digital-signing",
+  "version": "1.0.0",
+  "description": "A package for handling sequential digital signatures with queue-based signing requirements",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest"
+  },
+  "keywords": [
+    "digital-signing",
+    "sequential-signing",
+    "signature-queue"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "crypto": "^1.0.1"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
+  }
+}
